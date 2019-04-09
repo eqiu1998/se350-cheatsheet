@@ -32,7 +32,7 @@
 \usepackage{calc}
 \usepackage{ifthen}
 \usepackage[landscape]{geometry}
-\usepackage{listings, listingsutf8, zi4}
+\usepackage{xcolor, listings, listingsutf8, zi4}
 \usepackage[colorlinks=true,citecolor=blue,linkcolor=blue]{hyperref}
 \usepackage{enumitem}
 \setlist[itemize]{
@@ -42,10 +42,17 @@
     topsep=1pt,itemsep=1pt,partopsep=1pt, parsep=1pt, leftmargin=*
 }
 
+\definecolor{bluekeywords}{rgb}{0.13, 0.13, 1}
+\definecolor{greencomments}{rgb}{0, 0.5, 0}
+\definecolor{redstrings}{rgb}{0.9, 0, 0}
+\definecolor{graynumbers}{rgb}{0.5, 0.5, 0.5}
 \lstset{
   basicstyle=\ttfamily\tiny,
   mathescape,
   literate={\ \ }{{\ }}1,
+  commentstyle=\color{greencomments},
+  keywordstyle=\color{bluekeywords},
+  stringstyle=\color{redstrings},
   breaklines=true,
   frame=l,
   tabsize=1,
@@ -152,8 +159,8 @@
 \textbf{Thread:} a {\it single execution sequence} that represents a {\it separately schedulable} task\\ 
 \textbf{Shell:} job control system\\
 \textbf{Event driven:} single thread with event queue. \textbf{Multithread:} create new thread for each event
-\section{Implementations}
-\subsection{Synchronization}
+\subsection{Implementations}
+\subsubsection{Synchronization}
 \subsubsection{Uniprocessor Lock}
 \begin{multicols}{2}
 \begin{lstlisting}
@@ -241,6 +248,51 @@ Sched::makeReady(TCB *thread) {
     thread->state = READY;
     schedSpinLock.release();
     enableInterrupts();
+}
+\end{lstlisting}
+\end{multicols}
+Lock class implementation?:
+\begin{multicols}{2}
+\begin{lstlisting}
+class Lock::{
+private:
+    SpinLock spinlock;
+    int value = FREE;
+    Queue waiting;
+public:
+    void Lock::Acquire(){
+        spinlock.acquire();
+        if(value != FREE) {
+            // Must finish what I start
+            disableInterrupts();
+            readyList->removeSelf(myTCB);
+            waiting.add(myTCB);
+            spinlock.release();
+            /* like yield() except current
+               thread's TCB is on 
+               waiting/ready list */
+            suspend();
+            enableInterrupts();
+        } else {
+            value = BUSY;
+            spinlock().release();
+        }
+    }
+\end{lstlisting}
+\columnbreak
+\begin{lstlisting}
+    void Lock::Release(){
+        spinlock.Acquire();
+        if(waiting.notEmpty()) {
+            otherTCB = waiting.removeOne();
+            /* readylist protected by its
+               own spinlock */
+            readyList->add(otherTCB);
+        } else {
+            value = FREE;
+        }
+        spinlock.Release();
+    }
 }
 \end{lstlisting}
 \end{multicols}
